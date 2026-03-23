@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Password Games — Админка</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    font-family:'Arial',sans-serif;
+    background:linear-gradient(135deg,#0a0018,#1a0a2e);
+    min-height:100vh;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;padding:20px;
+  }
+  .box{
+    background:rgba(255,255,255,0.04);
+    border:1px solid #7744cc44;border-radius:20px;
+    padding:32px 28px;width:100%;max-width:400px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+  .logo{font-size:2.5rem;text-align:center;margin-bottom:8px;}
+  h1{color:#ffdd88;font-size:1.3rem;text-align:center;margin-bottom:4px;}
+  .sub{color:#7755aa;font-size:0.75rem;text-align:center;margin-bottom:24px;}
+
+  /* Логин */
+  #login-section{}
+  .field{margin-bottom:14px;}
+  .field label{display:block;color:#aa88cc;font-size:0.72rem;
+    font-weight:700;letter-spacing:0.5px;margin-bottom:5px;}
+  .field input{
+    width:100%;padding:10px 14px;border-radius:12px;
+    background:rgba(255,255,255,0.07);border:1px solid #7744cc44;
+    color:#fff;font-size:0.9rem;outline:none;
+    transition:border 0.2s;
+  }
+  .field input:focus{border-color:#9966ff;}
+  .field input::placeholder{color:#5544aa;}
+  .btn{
+    width:100%;padding:12px;border:none;border-radius:12px;
+    background:linear-gradient(135deg,#7733cc,#aa55ff);
+    color:#fff;font-size:0.95rem;font-weight:700;
+    cursor:pointer;transition:transform 0.1s;margin-top:4px;
+  }
+  .btn:hover{transform:translateY(-1px);}
+  .btn:active{transform:translateY(0);}
+  .err{color:#ff6688;font-size:0.75rem;text-align:center;
+    min-height:18px;margin-top:8px;}
+
+  /* Главная панель */
+  #admin-section{display:none;}
+  .admin-header{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:20px;
+  }
+  .admin-title{color:#ffdd88;font-size:1rem;font-weight:700;}
+  .logout-btn{
+    background:rgba(255,255,255,0.06);border:1px solid #7744cc33;
+    border-radius:8px;padding:4px 12px;color:#9977cc;
+    font-size:0.75rem;cursor:pointer;
+  }
+
+  /* Поиск */
+  .search-box{
+    display:flex;gap:8px;margin-bottom:16px;
+  }
+  .search-box input{
+    flex:1;padding:10px 14px;border-radius:12px;
+    background:rgba(255,255,255,0.07);border:1px solid #7744cc44;
+    color:#fff;font-size:0.9rem;outline:none;
+  }
+  .search-box input:focus{border-color:#9966ff;}
+  .search-box input::placeholder{color:#5544aa;}
+  .search-btn{
+    padding:10px 16px;border:none;border-radius:12px;
+    background:linear-gradient(135deg,#7733cc,#aa55ff);
+    color:#fff;font-weight:700;cursor:pointer;white-space:nowrap;
+  }
+
+  /* Результат */
+  #result{
+    background:rgba(255,255,255,0.04);border:1px solid #7744cc33;
+    border-radius:14px;padding:16px;min-height:80px;
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom:16px;
+  }
+  .result-empty{color:#5544aa;font-size:0.85rem;text-align:center;}
+  .result-card{width:100%;}
+  .result-email{color:#aa88cc;font-size:0.72rem;margin-bottom:8px;}
+  .result-password{
+    font-size:2.5rem;font-weight:900;text-align:center;
+    color:#ffdd88;letter-spacing:8px;
+    text-shadow:0 0 20px #ffaa3388;
+    margin:8px 0;
+  }
+  .result-time{color:#5544aa;font-size:0.68rem;text-align:center;}
+  .result-used{
+    background:#ff446622;border:1px solid #ff4466;
+    border-radius:8px;padding:4px 10px;
+    color:#ff8899;font-size:0.72rem;text-align:center;margin-top:8px;
+  }
+  .result-fresh{
+    background:#44ff8822;border:1px solid #44ff88;
+    border-radius:8px;padding:4px 10px;
+    color:#88ffaa;font-size:0.72rem;text-align:center;margin-top:8px;
+  }
+
+  /* Все пароли */
+  #all-passwords{margin-top:8px;}
+  .section-title{color:#7755aa;font-size:0.68rem;
+    text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+  .pwd-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:8px 12px;background:rgba(255,255,255,0.03);
+    border-radius:10px;margin-bottom:4px;border:1px solid #7744cc22;
+  }
+  .pwd-row-email{color:#aa88cc;font-size:0.75rem;flex:1;}
+  .pwd-row-pwd{color:#ffdd88;font-weight:900;font-size:1rem;
+    letter-spacing:3px;margin:0 12px;}
+  .pwd-row-badge{font-size:0.65rem;padding:2px 8px;border-radius:6px;}
+  .badge-fresh{background:#44ff8822;color:#88ffaa;border:1px solid #44ff8844;}
+  .badge-used{background:#ff446622;color:#ff8899;border:1px solid #ff446644;}
+  .refresh-btn{
+    width:100%;padding:8px;border:1px solid #7744cc44;border-radius:10px;
+    background:transparent;color:#9977cc;font-size:0.8rem;
+    cursor:pointer;transition:background 0.2s;
+  }
+  .refresh-btn:hover{background:rgba(255,255,255,0.05);}
+</style>
+</head>
+<body>
+
+<div class="box">
+  <div class="logo">🔑</div>
+  <h1>Password Games Admin</h1>
+  <div class="sub">Только для администратора</div>
+
+  <!-- Логин -->
+  <div id="login-section">
+    <div class="field">
+      <label>ADMIN EMAIL</label>
+      <input type="email" id="login-email" placeholder="admin@gmail.com"
+        onkeydown="if(event.key==='Enter')adminLogin()">
+    </div>
+    <div class="field">
+      <label>ПАРОЛЬ</label>
+      <input type="password" id="login-pwd" placeholder="••••••••"
+        onkeydown="if(event.key==='Enter')adminLogin()">
+    </div>
+    <button class="btn" onclick="adminLogin()">Войти →</button>
+    <div class="err" id="login-err"></div>
+  </div>
+
+  <!-- Панель -->
+  <div id="admin-section">
+    <div class="admin-header">
+      <div class="admin-title">🛡️ Панель администратора</div>
+      <button class="logout-btn" onclick="adminLogout()">Выйти</button>
+    </div>
+
+    <!-- Поиск по email -->
+    <div class="search-box">
+      <input type="email" id="search-email" placeholder="email игрока..."
+        onkeydown="if(event.key==='Enter')searchPlayer()">
+      <button class="search-btn" onclick="searchPlayer()">🔍</button>
+    </div>
+
+    <!-- Результат поиска -->
+    <div id="result">
+      <div class="result-empty">Введи email игрока для поиска</div>
+    </div>
+
+    <!-- Все пароли -->
+    <div id="all-passwords">
+      <div class="section-title">Все активные пароли</div>
+      <div id="pwd-list"><div class="result-empty">Загрузка...</div></div>
+      <button class="refresh-btn" onclick="loadAllPasswords()">↻ Обновить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://rjpwngqqgtyrdwfzjtzp.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJqcHduZ3FxZ3R5cmR3ZnpqdHpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNTMwNzUsImV4cCI6MjA4OTgyOTA3NX0.g4XRnEyH1QHl35w6QIRJV8T7hSpVxm32E3dRVmt0qBI';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Проверить сессию
+sb.auth.getSession().then(({data:{session}})=>{
+  if(session) showAdmin();
+});
+
+async function adminLogin(){
+  const email = document.getElementById('login-email').value.trim();
+  const pwd   = document.getElementById('login-pwd').value;
+  const err   = document.getElementById('login-err');
+  err.textContent='';
+  if(!email||!pwd){err.textContent='Заполни все поля!';return;}
+  const {error} = await sb.auth.signInWithPassword({email,password:pwd});
+  if(error){
+    const msgs={'Invalid login credentials':'Неверный email или пароль'};
+    err.textContent = msgs[error.message]||error.message;
+  } else {
+    showAdmin();
+  }
+}
+
+function adminLogout(){
+  sb.auth.signOut();
+  document.getElementById('admin-section').style.display='none';
+  document.getElementById('login-section').style.display='block';
+}
+
+function showAdmin(){
+  document.getElementById('login-section').style.display='none';
+  document.getElementById('admin-section').style.display='block';
+  loadAllPasswords();
+}
+
+async function searchPlayer(){
+  const email = document.getElementById('search-email').value.trim().toLowerCase();
+  const res   = document.getElementById('result');
+  if(!email){res.innerHTML='<div class="result-empty">Введи email!</div>';return;}
+
+  res.innerHTML='<div class="result-empty">Поиск...</div>';
+
+  // Ищем пользователя по email в таблице паролей (через nickname)
+  const {data,error} = await sb
+    .from('birthday_passwords')
+    .select('*')
+    .ilike('nickname', email.split('@')[0])
+    .order('created_at',{ascending:false})
+    .limit(1);
+
+  // Также попробуем по полному email
+  const {data:data2} = await sb
+    .from('birthday_passwords')
+    .select('*')
+    .ilike('nickname', email)
+    .order('created_at',{ascending:false})
+    .limit(1);
+
+  const found = (data2&&data2.length>0) ? data2[0] : (data&&data.length>0 ? data[0] : null);
+
+  if(!found){
+    res.innerHTML='<div class="result-empty">😕 Игрок не найден или ещё не нажимал на торт</div>';
+    return;
+  }
+
+  const d = new Date(found.created_at);
+  const timeStr = d.toLocaleString('ru');
+
+  res.innerHTML=`
+    <div class="result-card">
+      <div class="result-email">👤 ${found.nickname}</div>
+      <div class="result-password">${found.password}</div>
+      <div class="result-time">🕐 ${timeStr}</div>
+      <div class="${found.used?'result-used':'result-fresh'}">
+        ${found.used?'✓ Использован':'● Активен — ещё не введён'}
+      </div>
+    </div>`;
+}
+
+async function loadAllPasswords(){
+  const list = document.getElementById('pwd-list');
+  list.innerHTML='<div class="result-empty">Загрузка...</div>';
+
+  const {data,error} = await sb
+    .from('birthday_passwords')
+    .select('*')
+    .order('created_at',{ascending:false})
+    .limit(50);
+
+  if(error||!data||data.length===0){
+    list.innerHTML='<div class="result-empty">Паролей пока нет</div>';
+    return;
+  }
+
+  list.innerHTML = data.map(p=>{
+    const d = new Date(p.created_at);
+    const t = d.toLocaleString('ru',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return `<div class="pwd-row">
+      <div class="pwd-row-email">${p.nickname}<br><span style="color:#5544aa;font-size:0.65rem;">${t}</span></div>
+      <div class="pwd-row-pwd">${p.password}</div>
+      <span class="pwd-row-badge ${p.used?'badge-used':'badge-fresh'}">${p.used?'Исп.':'Акт.'}</span>
+    </div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>
